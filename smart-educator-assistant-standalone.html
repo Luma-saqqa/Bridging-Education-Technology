@@ -271,7 +271,7 @@
       <h3>Notes &amp; limits</h3>
       <ul>
         <li>A valid key <b>with credit</b> is required to get replies; each person pays for their own usage.</li>
-        <li>The key is stored only in that browser (local storage), sent only to Anthropic. A different browser or computer needs it entered again.</li>
+        <li>The key is stored only in that browser (local storage, in plain text), sent only to Anthropic. A different browser or computer needs it entered again. On a <b>shared or public computer</b>, use 🔑 → Remove when you're done.</li>
         <li>Won't run inside the Claude preview — always open the downloaded file in a normal browser.</li>
         <li>No memory between sessions — closing the tab clears the conversation by design.</li>
       </ul>
@@ -387,6 +387,7 @@ const STR = {
     errNote:m=>`⚠️ ${m||'فشل الطلب.'} <a href="#" onclick="retryLast();return false;">إعادة المحاولة</a>`}
 };
 
+const MODEL='claude-sonnet-4-6'; // change here to switch model everywhere
 let lang='en';
 let history=[]; // {role, content}
 const chat=document.getElementById('chat');
@@ -464,8 +465,10 @@ function md(t){
 /* ---------- deliverable detection ---------- */
 function detectTemplate(text){
   const t=text.toLowerCase();
-  // MCQ: several "A)/B)" or "answer key" or numbered Qs with options
-  if(/answer key|مفتاح الإجابة/.test(t) || (/(^|\n)\s*\d+[\.\)]/.test(text) && /(\n|^)\s*[a-dأ-د][\)\.]/i.test(text)))
+  // MCQ: explicit answer key, OR several distinct option lines (A) B) C)…) across the text.
+  // Count option-style lines so a lesson plan with one stray "a)" sub-point won't match.
+  const optLines=(text.match(/(?:^|\n)\s*\(?[a-dأ-د][\)\.]\s+\S/gmi)||[]).length;
+  if(/answer key|مفتاح الإجابة/.test(t) || (optLines>=3 && /(^|\n)\s*\d+[\.\)]/.test(text)))
     return {key:"mcq",label:"MCQ Quiz"};
   // Rubric: a markdown table whose header mentions criteria/levels
   if(/\|/.test(text) && /(criteria|criterion|excellent|good \(|developing|المعيار|ممتاز|سلم تقدير|rubric)/i.test(t))
@@ -489,24 +492,25 @@ function addMsg(role,text){
   b.className='bubble';
   if(isArabic(text))b.setAttribute('dir','rtl');
   b.innerHTML=md(text);
-  // attach export button for AI deliverables
-  if(role==='ai'){
-    const tpl=detectTemplate(text);
-    if(tpl){
-      const actions=document.createElement('div');
-      actions.className='msg-actions';
-      const btn=document.createElement('button');
-      btn.className='pdf-btn';
-      btn.innerHTML='📄 '+STR[lang].exportBtn;
-      btn.onclick=()=>exportToTags(text,tpl,btn,b);
-      actions.appendChild(btn);
-      b.appendChild(actions);
-    }
-  }
+  if(role==='ai')attachExport(b,text);
   wrap.appendChild(av);wrap.appendChild(b);
   chat.appendChild(wrap);
   chat.scrollTop=chat.scrollHeight;
   return b;
+}
+
+/* attach the Export-to-PDF-tags button to a finished AI bubble */
+function attachExport(b,text){
+  const tpl=detectTemplate(text);
+  if(!tpl)return;
+  const actions=document.createElement('div');
+  actions.className='msg-actions';
+  const btn=document.createElement('button');
+  btn.className='pdf-btn';
+  btn.innerHTML='📄 '+STR[lang].exportBtn;
+  btn.onclick=()=>exportToTags(text,tpl,btn,b);
+  actions.appendChild(btn);
+  b.appendChild(actions);
 }
 
 /* ---------- export a deliverable to PDF tags ---------- */
@@ -530,7 +534,7 @@ async function exportToTags(sourceText,tpl,btn,bubble){
         "anthropic-dangerous-direct-browser-access":"true"
       },
       body:JSON.stringify({
-        model:"claude-sonnet-4-20250514",max_tokens:1500,
+        model:MODEL,max_tokens:1500,
         messages:[{role:"user",content:prompt}]
       })
     });
@@ -690,35 +694,87 @@ async function callClaude(){
         "anthropic-dangerous-direct-browser-access":"true"
       },
       body:JSON.stringify({
-        model:"claude-sonnet-4-20250514",max_tokens:2000,
+        model:MODEL,max_tokens:2000,stream:true,
         system:SYSTEM_PROMPT,
         messages:history
       })
     });
-    typing.remove();
-    const raw=await res.text();
-    let data=null;
-    try{ data=JSON.parse(raw); }catch(_){ /* non-JSON body */ }
 
-    if(res.status===401||res.status===403){ showKeyNote(); return; }
+    if(res.status===401||res.status===403){ typing.remove();showKeyNote(); return; }
 
-    if(!data){
-      // Body wasn't JSON — show status + a short snippet of what came back
-      const snippet=(raw||'').replace(/<[^>]+>/g,' ').replace(/\s+/g,' ').trim().slice(0,160);
-      showErrNote(`HTTP ${res.status}. ${snippet||'No readable response body.'}`);
+    // Error responses come back as JSON (not a stream)
+    if(!res.ok || !res.body){
+      typing.remove();
+      const raw=await res.text();
+      let data=null; try{ data=JSON.parse(raw); }catch(_){}
+      if(data&&data.error){
+        const m=data.error.message||JSON.stringify(data.error);
+        if(/api[\s_-]?key|authentication|x-api-key|credit|billing/i.test(m)) showKeyNote();
+        else showErrNote(m);
+      }else{
+        const snippet=(raw||'').replace(/<[^>]+>/g,' ').replace(/\s+/g,' ').trim().slice(0,160);
+        showErrNote(`HTTP ${res.status}. ${snippet||'No readable response body.'}`);
+      }
       return;
     }
-    if(data.error){
-      const m=data.error.message||JSON.stringify(data.error);
-      if(/api[\s_-]?key|authentication|x-api-key|credit|billing/i.test(m)){ showKeyNote(); }
-      else { showErrNote(m); }
+
+    // Live bubble for streamed text
+    let bubble=null,wrap=null;
+    function ensureBubble(){
+      if(bubble)return;
+      typing.remove();
+      wrap=document.createElement('div');wrap.className='msg ai';
+      const av=document.createElement('div');av.className='avatar ai';av.textContent='🎓';
+      bubble=document.createElement('div');bubble.className='bubble';
+      wrap.appendChild(av);wrap.appendChild(bubble);
+      chat.appendChild(wrap);
+    }
+
+    const reader=res.body.getReader();
+    const dec=new TextDecoder();
+    let buf='',acc='',apiErr=null;
+    const nearBottom=()=>chat.scrollHeight-chat.scrollTop-chat.clientHeight<120;
+
+    while(true){
+      const {value,done}=await reader.read();
+      if(done)break;
+      buf+=dec.decode(value,{stream:true});
+      const lines=buf.split('\n');
+      buf=lines.pop(); // keep partial line
+      for(const line of lines){
+        const s=line.trim();
+        if(!s.startsWith('data:'))continue;
+        const payload=s.slice(5).trim();
+        if(payload==='[DONE]')continue;
+        let ev=null; try{ ev=JSON.parse(payload); }catch(_){ continue; }
+        if(ev.type==='content_block_delta'&&ev.delta&&ev.delta.type==='text_delta'){
+          acc+=ev.delta.text;
+          ensureBubble();
+          if(acc&&isArabic(acc))bubble.setAttribute('dir','rtl');
+          const stick=nearBottom();
+          bubble.innerHTML=md(acc);
+          if(stick)chat.scrollTop=chat.scrollHeight;
+        }else if(ev.type==='error'&&ev.error){
+          apiErr=ev.error.message||JSON.stringify(ev.error);
+        }
+      }
+    }
+
+    if(apiErr){
+      if(!acc.trim()){ typing.remove(); if(wrap)wrap.remove(); }
+      if(/api[\s_-]?key|authentication|x-api-key|credit|billing/i.test(apiErr)) showKeyNote();
+      else showErrNote(apiErr);
       return;
     }
-    const txt=(data.content||[]).filter(b=>b.type==='text').map(b=>b.text).join('\n').trim();
+
+    const txt=acc.trim();
     if(txt){
       history.push({role:'assistant',content:txt});
-      addMsg('ai',txt);
-    } else {
+      bubble.innerHTML=md(txt);
+      attachExport(bubble,txt);
+      chat.scrollTop=chat.scrollHeight;
+    }else{
+      typing.remove(); if(wrap)wrap.remove();
       showErrNote('Empty response from the model.');
     }
   }catch(e){
