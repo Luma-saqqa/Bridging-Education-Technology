@@ -1,0 +1,773 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>The Smart Educator's Assistant</title>
+<style>
+  :root{
+    --navy:#0f2233; --navy-2:#16314a; --panel:#1b3a57; --line:#27496b;
+    --teal:#2db5a3; --teal-soft:#1f8e80; --gold:#e0a458;
+    --ink:#eaf2f8; --muted:#9bb4c9; --muted-2:#6f8aa3;
+    --bubble-user:#1f8e80; --bubble-ai:#16314a;
+    --danger:#d9534f;
+    --radius:14px; --shadow:0 8px 30px rgba(0,0,0,.35);
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  html,body{height:100%}
+  body{
+    font-family:"Segoe UI","Helvetica Neue",system-ui,sans-serif;
+    background:
+      radial-gradient(1200px 600px at 80% -10%, rgba(45,181,163,.10), transparent 60%),
+      radial-gradient(900px 500px at -10% 110%, rgba(224,164,88,.08), transparent 55%),
+      var(--navy);
+    color:var(--ink); height:100vh; display:flex; flex-direction:column;
+  }
+  /* Header */
+  header{
+    display:flex; align-items:center; gap:14px; padding:14px 22px;
+    background:linear-gradient(180deg, rgba(22,49,74,.95), rgba(15,34,51,.85));
+    border-bottom:1px solid var(--line); backdrop-filter:blur(6px);
+  }
+  .logo{
+    width:40px;height:40px;border-radius:11px;flex:0 0 auto;
+    background:linear-gradient(135deg,var(--teal),var(--teal-soft));
+    display:grid;place-items:center;font-size:20px;
+    box-shadow:0 4px 14px rgba(45,181,163,.35);
+  }
+  .title h1{font-size:16px;font-weight:600;letter-spacing:.2px}
+  .title p{font-size:11.5px;color:var(--muted);margin-top:1px}
+  .header-actions{margin-left:auto;display:flex;gap:8px;align-items:center}
+  .lang-toggle{
+    display:flex;background:var(--navy-2);border:1px solid var(--line);
+    border-radius:999px;overflow:hidden;font-size:12px;
+  }
+  .lang-toggle button{
+    background:none;border:none;color:var(--muted);padding:6px 14px;cursor:pointer;
+    font-weight:600;transition:.2s;
+  }
+  .lang-toggle button.active{background:var(--teal);color:#04201c}
+  .reset-btn{
+    background:var(--navy-2);border:1px solid var(--line);color:var(--muted);
+    border-radius:999px;padding:6px 13px;font-size:12px;cursor:pointer;transition:.2s;
+  }
+  .reset-btn:hover{color:var(--ink);border-color:var(--teal)}
+
+  /* Context bar */
+  .context-bar{
+    display:flex;gap:8px;flex-wrap:wrap;padding:8px 22px;
+    background:rgba(15,34,51,.6);border-bottom:1px solid var(--line);
+  }
+  .chip{
+    font-size:11px;background:var(--navy-2);border:1px solid var(--line);
+    color:var(--muted);padding:4px 11px;border-radius:999px;display:flex;gap:6px;align-items:center;
+  }
+  .chip b{color:var(--ink);font-weight:600}
+  .chip.set{border-color:var(--teal-soft)}
+  .chip.set .dot{background:var(--teal)}
+  .dot{width:7px;height:7px;border-radius:50%;background:var(--muted-2)}
+
+  /* Chat */
+  main{flex:1;overflow-y:auto;padding:22px;display:flex;flex-direction:column;gap:16px}
+  .msg{max-width:780px;display:flex;gap:11px;animation:rise .35s ease both}
+  @keyframes rise{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}
+  .msg.user{align-self:flex-end;flex-direction:row-reverse}
+  .avatar{
+    width:30px;height:30px;border-radius:9px;flex:0 0 auto;display:grid;place-items:center;font-size:14px;
+  }
+  .avatar.ai{background:linear-gradient(135deg,var(--teal),var(--teal-soft))}
+  .avatar.user{background:var(--gold);color:#3a2606}
+  .bubble{
+    background:var(--bubble-ai);border:1px solid var(--line);
+    padding:13px 16px;border-radius:14px;line-height:1.6;font-size:14.5px;
+    box-shadow:0 4px 14px rgba(0,0,0,.18);
+  }
+  .msg.user .bubble{background:var(--bubble-user);border-color:var(--teal-soft);color:#eafdf9}
+  .bubble[dir="rtl"]{text-align:right;font-family:"Segoe UI",Tahoma,sans-serif}
+  .bubble h2{font-size:15px;margin:10px 0 6px;color:var(--teal)}
+  .bubble h3{font-size:13.5px;margin:8px 0 4px;color:var(--gold)}
+  .bubble ul,.bubble ol{margin:6px 0 6px 20px}
+  .bubble li{margin:3px 0}
+  .bubble p{margin:6px 0}
+  .bubble code{background:rgba(0,0,0,.3);padding:1px 6px;border-radius:5px;font-size:12.5px}
+  .bubble pre{
+    background:#0a1825;border:1px solid var(--line);border-radius:10px;
+    padding:12px;overflow-x:auto;margin:8px 0;font-size:12.5px;line-height:1.5;
+  }
+  .bubble table{border-collapse:collapse;margin:8px 0;width:100%;font-size:13px}
+  .bubble th,.bubble td{border:1px solid var(--line);padding:6px 9px;text-align:left}
+  .bubble th{background:var(--navy-2);color:var(--teal)}
+  .bubble strong{color:#fff}
+
+  /* Menu cards */
+  .menu-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(225px,1fr));gap:10px;margin-top:10px}
+  .menu-card{
+    background:var(--navy-2);border:1px solid var(--line);border-radius:12px;
+    padding:12px 13px;cursor:pointer;transition:.18s;text-align:left;
+  }
+  .menu-card:hover{border-color:var(--teal);transform:translateY(-2px);box-shadow:0 6px 18px rgba(45,181,163,.18)}
+  .menu-card .mc-top{display:flex;align-items:center;gap:8px;font-weight:600;font-size:13.5px}
+  .menu-card .mc-num{
+    width:22px;height:22px;border-radius:7px;background:var(--teal);color:#04201c;
+    display:grid;place-items:center;font-size:12px;flex:0 0 auto;
+  }
+  .menu-card p{font-size:11.5px;color:var(--muted);margin-top:6px;line-height:1.45}
+
+  /* Typing */
+  .typing .bubble{display:flex;gap:5px;align-items:center;padding:15px 18px}
+  .typing span{width:7px;height:7px;border-radius:50%;background:var(--teal);animation:blink 1.2s infinite}
+  .typing span:nth-child(2){animation-delay:.2s}
+  .typing span:nth-child(3){animation-delay:.4s}
+  @keyframes blink{0%,60%,100%{opacity:.25;transform:translateY(0)}30%{opacity:1;transform:translateY(-3px)}}
+
+  /* Composer */
+  footer{padding:14px 22px 18px;border-top:1px solid var(--line);background:rgba(15,34,51,.7)}
+  .composer{
+    max-width:820px;margin:0 auto;display:flex;gap:10px;align-items:flex-end;
+    background:var(--navy-2);border:1px solid var(--line);border-radius:16px;padding:8px 8px 8px 16px;
+    transition:.2s;
+  }
+  .composer:focus-within{border-color:var(--teal);box-shadow:0 0 0 3px rgba(45,181,163,.12)}
+  .composer textarea{
+    flex:1;background:none;border:none;color:var(--ink);font-size:14.5px;resize:none;
+    font-family:inherit;line-height:1.5;max-height:140px;outline:none;padding:6px 0;
+  }
+  .send-btn{
+    width:40px;height:40px;border-radius:11px;border:none;flex:0 0 auto;cursor:pointer;
+    background:linear-gradient(135deg,var(--teal),var(--teal-soft));color:#04201c;
+    font-size:17px;display:grid;place-items:center;transition:.18s;
+  }
+  .send-btn:hover{transform:scale(1.06)}
+  .send-btn:disabled{opacity:.4;cursor:not-allowed;transform:none}
+  .hint{max-width:820px;margin:7px auto 0;font-size:11px;color:var(--muted-2);text-align:center}
+
+  /* Export / deliverable actions */
+  .msg-actions{display:flex;gap:8px;margin-top:10px;flex-wrap:wrap}
+  .pdf-btn{
+    display:inline-flex;align-items:center;gap:7px;font-size:12px;font-weight:600;
+    background:linear-gradient(135deg,var(--gold),#c98b3c);color:#3a2606;
+    border:none;border-radius:9px;padding:7px 13px;cursor:pointer;transition:.18s;
+  }
+  .pdf-btn:hover{transform:translateY(-1px);box-shadow:0 5px 14px rgba(224,164,88,.3)}
+  .pdf-btn:disabled{opacity:.55;cursor:wait;transform:none}
+  .pdf-btn.done{background:var(--navy-2);color:var(--teal);border:1px solid var(--teal-soft)}
+  .tpl-note{font-size:11.5px;color:var(--gold);margin:8px 0 2px;font-weight:600}
+  .key-note{
+    align-self:center;max-width:780px;font-size:12.5px;color:var(--gold);
+    background:rgba(224,164,88,.08);border:1px solid rgba(224,164,88,.3);
+    border-radius:10px;padding:9px 14px;animation:rise .3s ease both;
+  }
+  .key-note a{color:var(--gold);font-weight:600}
+  .pre-wrap{position:relative}
+  .copy-btn{
+    position:absolute;top:8px;right:8px;font-size:11px;font-weight:600;
+    background:var(--panel);border:1px solid var(--line);color:var(--muted);
+    border-radius:7px;padding:4px 9px;cursor:pointer;transition:.15s;z-index:2;
+  }
+  .copy-btn:hover{color:var(--ink);border-color:var(--teal)}
+  .copy-btn.copied{color:var(--teal);border-color:var(--teal)}
+  .bubble[dir="rtl"] .copy-btn{right:auto;left:8px}
+
+  /* API key modal */
+  .modal-overlay{
+    position:fixed;inset:0;background:rgba(6,16,26,.72);backdrop-filter:blur(4px);
+    display:grid;place-items:center;z-index:50;padding:20px;
+  }
+  .modal{
+    background:var(--navy-2);border:1px solid var(--line);border-radius:16px;
+    padding:24px;max-width:440px;width:100%;box-shadow:var(--shadow);animation:rise .25s ease both;
+  }
+  .modal h2{font-size:17px;color:var(--teal);margin-bottom:10px}
+  .modal p{font-size:13px;color:var(--muted);line-height:1.55;margin-bottom:14px}
+  .modal p b{color:var(--ink)}
+  .modal input{
+    width:100%;background:var(--navy);border:1px solid var(--line);color:var(--ink);
+    border-radius:10px;padding:11px 13px;font-size:14px;font-family:inherit;outline:none;
+  }
+  .modal input:focus{border-color:var(--teal);box-shadow:0 0 0 3px rgba(45,181,163,.12)}
+  .modal-actions{display:flex;align-items:center;gap:10px;margin-top:16px}
+  .modal-actions a#km-get,.modal-actions a{font-size:12.5px;color:var(--gold);text-decoration:none;font-weight:600}
+  .modal-actions a:hover{text-decoration:underline}
+  .km-cancel{background:var(--navy);border:1px solid var(--line);color:var(--muted);border-radius:9px;padding:8px 15px;font-size:13px;cursor:pointer}
+  .km-cancel:hover{color:var(--ink)}
+  .km-save{background:linear-gradient(135deg,var(--teal),var(--teal-soft));border:none;color:#04201c;border-radius:9px;padding:8px 17px;font-size:13px;font-weight:600;cursor:pointer}
+  .km-save:hover{transform:translateY(-1px)}
+  .km-clear{font-size:11.5px;color:var(--muted-2);margin-top:12px}
+  .km-clear a{color:var(--gold)}
+  /* Help modal */
+  .modal-help{max-width:560px}
+  .help-body{max-height:62vh;overflow-y:auto;margin:-2px -4px 4px 0;padding-right:8px}
+  .help-body h3{font-size:13.5px;color:var(--gold);margin:14px 0 5px}
+  .help-body h3:first-child{margin-top:2px}
+  .help-body p{font-size:13px;color:var(--muted);line-height:1.55;margin:4px 0}
+  .help-body ul,.help-body ol{margin:4px 0 4px 18px}
+  .help-body li{font-size:13px;color:var(--muted);line-height:1.5;margin:4px 0}
+  .help-body b{color:var(--ink)}
+  .help-body code{background:rgba(0,0,0,.3);padding:1px 6px;border-radius:5px;font-size:12px;color:var(--teal)}
+  .help-body a{color:var(--gold)}
+
+  ::-webkit-scrollbar{width:9px}
+  ::-webkit-scrollbar-thumb{background:var(--line);border-radius:9px}
+  ::-webkit-scrollbar-track{background:transparent}
+</style>
+</head>
+<body>
+<header>
+  <div class="logo">🎓</div>
+  <div class="title">
+    <h1 id="t-title">The Smart Educator's Assistant</h1>
+    <p id="t-sub">Plan · Teach · Assess · Communicate · Develop</p>
+  </div>
+  <div class="header-actions">
+    <div class="lang-toggle">
+      <button id="en-btn" class="active" onclick="setLang('en')">EN</button>
+      <button id="ar-btn" onclick="setLang('ar')">ع</button>
+    </div>
+    <button class="reset-btn" onclick="openHelp()" id="help-label">? Help</button>
+    <button class="reset-btn" onclick="openKey()" id="key-label">🔑 API Key</button>
+    <button class="reset-btn" onclick="resetChat()" id="reset-label">Reset</button>
+  </div>
+</header>
+
+<!-- API key modal -->
+<div id="keyModal" class="modal-overlay" style="display:none">
+  <div class="modal">
+    <h2 id="km-title">Connect your Anthropic API key</h2>
+    <p id="km-desc">This agent calls Claude directly from your browser. Paste your own Anthropic API key to use it. The key is stored only in <b>this browser</b> (local storage) and is never sent anywhere except Anthropic.</p>
+    <input type="password" id="keyInput" placeholder="sk-ant-..." autocomplete="off" spellcheck="false">
+    <div class="modal-actions">
+      <a href="https://console.anthropic.com/settings/keys" target="_blank" rel="noopener" id="km-get">Get a key ↗</a>
+      <div style="flex:1"></div>
+      <button class="km-cancel" onclick="closeKey()" id="km-cancel">Cancel</button>
+      <button class="km-save" onclick="saveKey()" id="km-save">Save key</button>
+    </div>
+    <p id="km-clear" class="km-clear" style="display:none">A key is saved. <a href="#" onclick="clearKey();return false;">Remove it from this browser</a>.</p>
+  </div>
+</div>
+
+<!-- Help modal -->
+<div id="helpModal" class="modal-overlay" style="display:none">
+  <div class="modal modal-help">
+    <h2>Using the Smart Educator's Assistant</h2>
+    <div class="help-body">
+      <h3>Run it in 3 steps</h3>
+      <ol>
+        <li><b>Open the file</b> in a browser (Chrome, Edge, Safari, Firefox). Open it as a real downloaded file — not inside the Claude preview pane.</li>
+        <li><b>Add your API key.</b> Paste your Anthropic key (<code>sk-ant-…</code>) into the 🔑 dialog and save. No key? Get one at <a href="https://console.anthropic.com/settings/keys" target="_blank" rel="noopener">console.anthropic.com/settings/keys ↗</a>.</li>
+        <li><b>Start.</b> Pick a menu card or type a request. The agent asks for curriculum, subject, grade/year and topic, then produces the work.</li>
+      </ol>
+
+      <h3>Day to day</h3>
+      <ul>
+        <li><b>Menu or direct request</b> — tap a category, or type a full request like "Year 9 Cambridge IGCSE Biology MCQ on cell division, 15 questions."</li>
+        <li><b>Language</b> — toggle EN / ع top right; Arabic lays out right-to-left automatically.</li>
+        <li><b>Export to PDF tags</b> — on a lesson plan, quiz, rubric or feedback, click <b>Export to PDF tags</b>, then Copy the block into your school's Output→PDF tool. It names the template to pick.</li>
+        <li><b>Reset</b> clears the conversation. <b>🔑 Key</b> changes or removes your key.</li>
+      </ul>
+
+      <h3>Sharing with colleagues</h3>
+      <p>Send them the file — it's one self-contained HTML file. Each person opens it and enters <b>their own</b> key. The file holds no key, so it's safe to pass around.</p>
+
+      <h3>Notes &amp; limits</h3>
+      <ul>
+        <li>A valid key <b>with credit</b> is required to get replies; each person pays for their own usage.</li>
+        <li>The key is stored only in that browser (local storage), sent only to Anthropic. A different browser or computer needs it entered again.</li>
+        <li>Won't run inside the Claude preview — always open the downloaded file in a normal browser.</li>
+        <li>No memory between sessions — closing the tab clears the conversation by design.</li>
+      </ul>
+
+      <h3>Troubleshooting</h3>
+      <ul>
+        <li><b>Nothing happens / "temporarily unavailable":</b> check the key is entered and the account has credit.</li>
+        <li><b>Worked, then stopped:</b> the key may have hit a rate or spend limit — check your Anthropic console.</li>
+        <li><b>Arabic looks misaligned:</b> set the toggle to ع; layout flips to RTL only in Arabic mode.</li>
+      </ul>
+    </div>
+    <div class="modal-actions">
+      <div style="flex:1"></div>
+      <button class="km-save" onclick="closeHelp()">Got it</button>
+    </div>
+  </div>
+</div>
+
+<div class="context-bar" id="contextBar">
+  <div class="chip" id="chip-cur"><span class="dot"></span><span class="lbl">Curriculum</span></div>
+  <div class="chip" id="chip-sub"><span class="dot"></span><span class="lbl">Subject</span></div>
+  <div class="chip" id="chip-grd"><span class="dot"></span><span class="lbl">Grade</span></div>
+  <div class="chip" id="chip-top"><span class="dot"></span><span class="lbl">Topic</span></div>
+</div>
+
+<main id="chat"></main>
+
+<footer>
+  <div class="composer">
+    <textarea id="input" rows="1" placeholder="Type your request, or pick a number from the menu…"></textarea>
+    <button class="send-btn" id="sendBtn" onclick="send()">➤</button>
+  </div>
+  <div class="hint" id="hint">Tip: name your curriculum, subject, grade and topic for the most tailored output.</div>
+</footer>
+
+<script>
+/* ============ SYSTEM PROMPT (from the uploaded bilingual spec) ============ */
+const SYSTEM_PROMPT = `You are The Smart Educator's Assistant, an AI partner for teachers, trainers, and academic staff at an international school that delivers a wide range of international and national curricula. You help educators plan, teach, assess, communicate, and develop professionally — quickly and to a high standard. Adapt every output to the teacher's chosen curriculum, subject, year/grade level, and topic.
+
+CORE BEHAVIOUR:
+1. Always anchor to context: subject, grade/year, curriculum, and topic. When the teacher selects a menu category (rather than giving a full request), ALWAYS collect these four essentials before producing output, in ONE short batched message, asking for the curriculum FIRST, then subject, grade/year level, and topic. Offer the supported curriculum list when asking. Confirm curriculum — never assume — BUT if all needed essentials are already named in the request or earlier in the conversation, do NOT ask again; proceed directly.
+2. Supported curricula — offer this list only if curriculum is unclear: Cambridge International (Primary, Lower Secondary, IGCSE, AS, A Level); Pearson Edexcel (Intl GCSE, Intl A Level); IB (PYP, MYP, DP); American (Common Core, NGSS, AP); Saudi Ministry; UAE; Qatar; Bahrain; Kuwait; Oman; Jordanian; Egyptian; or any ministry the teacher specifies.
+3. Curriculum awareness: use the correct terminology, stages and standards for the chosen curriculum.
+4. Pedagogical soundness: align outcomes to Bloom's Taxonomy, write measurable objectives, and include differentiation for mixed-ability and SEN learners. Every lesson plan should include at least one differentiation element and outcomes spanning at least two Bloom's levels.
+5. Clarity & format: clean, ready-to-use output — tables, numbered steps, headings. Copy-paste ready.
+6. Tone: warm, concise, professional. Suitable for parents, students, colleagues.
+7. Editable placeholders: when a detail is unspecified, insert a clearly marked placeholder like [TOPIC], [CURRICULUM], [DURATION] rather than guessing.
+8. Academic integrity: do not complete work meant to assess a specific student's own ability, and keep the learning goal intact.
+9. Recency: curricula get revised; when assessment objectives or specifications matter, remind the teacher to verify against the current official specification.
+
+THE 40 ACTIONS (fill bracketed slots from context, always including [CURRICULUM]):
+Planning: 1 Comprehensive Lesson Plan, 2 Learning Unit, 3 Weekly Plan, 4 Learning Outcomes, 5 Instructional Presentation.
+Differentiation: 6 Simplify Content (3 levels), 7 Simplify Complex Concepts, 8 Advanced-Learner Activities, 9 Individual Support Plan, 10 Adapt Activities.
+Assessment & Testing: 11 MCQ Test (+ answer key), 12 Critical-Thinking Questions, 13 Fill-in-the-Blank, 14 Flashcards, 15 True/False (+ explanations).
+Assessment & Feedback: 16 Rubric, 17 Constructive Feedback, 18 Analyze Results, 19 Report/Certificate Statements, 20 Self-Assessment Form.
+Communication: 21 Welcome Message, 22 Performance Follow-Up, 23 Newsletter, 24 Event Invitation, 25 Thank-You.
+Management: 26 Work Charter, 27 Transition Management, 28 Challenge Management, 29 Non-Monetary Motivation, 30 Team Organization.
+Active Learning: 31 Project-Based Learning, 32 Simulation/Role-Play, 33 Opening Activities, 34 Creative-Thinking Tasks, 35 Virtual Learning Journey.
+Professional Development: 36 Summarize Research, 37 Professional Letter, 38 PD Plan, 39 Task/Time Management, 40 Innovative Ideas.
+
+PDF EXPORT: After delivering a substantial deliverable (lesson plan, quiz, rubric, feedback), offer ONCE per deliverable type to format it as a professional PDF. If the teacher accepts, re-output the SAME content inside a single code block using the tagged syntax for the school's Output→PDF tool, and tell them which template to select. Do not change content — only reformat.
+- Lesson Plan tags: '## Section Title', '- bullet', 'TIME | Phase | minutes | description', 'DIFF | Label | text', '?? question'.
+- MCQ tags: blank line between questions; 'Q: question', '* correct option', '- other option'.
+- Rubric tags: first line = headers, later lines = rows, cells separated by ' | '.
+- Feedback tags: '## What you did well', '## One thing to strengthen', '## Your next step'.
+Keep [bracketed] placeholders intact. Arabic content is auto-detected and laid out right-to-left.
+
+GOLDEN RULE: the clearer the inputs, the better the output. When vague, ask one focused question, then deliver polished, classroom-ready work. Respond in the same language the teacher uses (English or Arabic). Use Markdown formatting (headings, tables, lists) — it renders in the interface.`;
+
+const MENU = {
+  en: [
+    ["1","Educational Planning","Lesson plans, units, weekly plans, learning outcomes, presentations"],
+    ["2","Differentiation","Simplify content, support & extension activities, adapt for diverse needs"],
+    ["3","Assessment & Testing","MCQs, critical-thinking questions, fill-in-the-blank, flashcards, true/false"],
+    ["4","Assessment & Feedback","Rubrics, constructive feedback, result analysis, report comments"],
+    ["5","Professional Communication","Welcome messages, performance notices, newsletters, invitations, thank-yous"],
+    ["6","Management & Organization","Work charters, transitions, challenges, motivation, team roles"],
+    ["7","Active Learning & Creativity","Project-based learning, role-play, openers, creative tasks, journeys"],
+    ["8","Professional Development","Summarize research, formal letters, PD plans, time management, ideas"]
+  ],
+  ar: [
+    ["١","التخطيط التعليمي","خطط الدروس والوحدات والخطط الأسبوعية ونواتج التعلم والعروض"],
+    ["٢","التمايز","تبسيط المحتوى وأنشطة الدعم والإثراء والتكييف للاحتياجات المتنوعة"],
+    ["٣","التقويم والاختبارات","اختيار من متعدد وأسئلة تفكير ناقد وإكمال فراغات وبطاقات وصح/خطأ"],
+    ["٤","التقييم والتغذية الراجعة","سلالم التقدير والتغذية الراجعة وتحليل النتائج وعبارات التقارير"],
+    ["٥","التواصل المهني","رسائل ترحيبية وإشعارات أداء ونشرات ودعوات ورسائل شكر"],
+    ["٦","الإدارة والتنظيم","مواثيق العمل والانتقالات والتحديات والتحفيز وأدوار الفريق"],
+    ["٧","التعلم النشط والإبداع","التعلم القائم على المشروعات ولعب الأدوار والأنشطة الافتتاحية"],
+    ["٨","التطوير المهني","تلخيص الأبحاث والخطابات الرسمية وخطط التطوير وإدارة الوقت والأفكار"]
+  ]
+};
+
+const STR = {
+  en:{title:"The Smart Educator's Assistant",sub:"Plan · Teach · Assess · Communicate · Develop",
+    reset:"Reset",placeholder:"Type your request, or pick a number from the menu…",
+    hint:"Tip: name your curriculum, subject, grade and topic for the most tailored output.",
+    greet:"**Hello, and welcome!** I'm the Smart Educator's Assistant — here to help you plan, teach, assess, communicate, and develop professionally, tailored to your exact curriculum. 👋\n\n**What would you like help with today?** Pick a card below, or just tell me directly what you need.",
+    cur:"Curriculum",sub2:"Subject",grd:"Grade",top:"Topic",
+    exportBtn:"Export to PDF tags",exporting:"Formatting…",exported:"Tags ready ↓",
+    copy:"Copy",copied:"Copied!",
+    tplNote:t=>`📄 In the Output→PDF tool, select the <b>${t}</b> template, then paste the block below.`,
+    keyNote:`🔑 Add your Anthropic API key to start — <a href="#" onclick="openKey();return false;">open key settings</a>.`,
+    errNote:m=>`⚠️ ${m||'The request failed.'} <a href="#" onclick="retryLast();return false;">Retry</a>`},
+  ar:{title:"مساعد المعلم الذكي",sub:"تخطيط · تدريس · تقويم · تواصل · تطوير",
+    reset:"إعادة",placeholder:"اكتب طلبك، أو اختر رقمًا من القائمة…",
+    hint:"نصيحة: حدّد المنهج والمادة والصف والموضوع للحصول على أدق المخرجات.",
+    greet:"**مرحبًا بك!** أنا مساعد المعلم الذكي — هنا لمساعدتك على التخطيط والتدريس والتقويم والتواصل والتطوير المهني، بما يناسب منهجك تمامًا. 👋\n\n**بماذا تودّ أن أساعدك اليوم؟** اختر بطاقة بالأسفل، أو أخبرني مباشرةً بما تحتاجه.",
+    cur:"المنهج",sub2:"المادة",grd:"الصف",top:"الموضوع",
+    exportBtn:"تصدير إلى وسوم PDF",exporting:"جارٍ التنسيق…",exported:"الوسوم جاهزة ↓",
+    copy:"نسخ",copied:"تم النسخ!",
+    tplNote:t=>`📄 في أداة تحويل PDF، اختر قالب <b>${t}</b> ثم الصق الكتلة أدناه.`,
+    keyNote:`🔑 أضِف مفتاح Anthropic API للبدء — <a href="#" onclick="openKey();return false;">افتح إعدادات المفتاح</a>.`,
+    errNote:m=>`⚠️ ${m||'فشل الطلب.'} <a href="#" onclick="retryLast();return false;">إعادة المحاولة</a>`}
+};
+
+let lang='en';
+let history=[]; // {role, content}
+const chat=document.getElementById('chat');
+const input=document.getElementById('input');
+
+/* ---------- API key management (standalone build) ---------- */
+const KEY_STORE='anthropic_api_key';
+function getKey(){ try{return localStorage.getItem(KEY_STORE)||'';}catch(e){return '';} }
+function openKey(){
+  const m=document.getElementById('keyModal');
+  document.getElementById('keyInput').value=getKey();
+  document.getElementById('km-clear').style.display=getKey()?'block':'none';
+  m.style.display='grid';
+  document.getElementById('keyInput').focus();
+}
+function closeKey(){ document.getElementById('keyModal').style.display='none'; }
+function saveKey(){
+  const v=document.getElementById('keyInput').value.trim();
+  try{ if(v) localStorage.setItem(KEY_STORE,v); }catch(e){}
+  refreshKeyBtn();
+  closeKey();
+}
+function clearKey(){
+  try{ localStorage.removeItem(KEY_STORE); }catch(e){}
+  document.getElementById('keyInput').value='';
+  document.getElementById('km-clear').style.display='none';
+  refreshKeyBtn();
+}
+function refreshKeyBtn(){
+  const b=document.getElementById('key-label');
+  b.innerHTML=getKey()?'🔑 Key set':'🔑 API Key';
+  b.style.borderColor=getKey()?'var(--teal-soft)':'';
+}
+function ensureKey(){
+  if(getKey())return true;
+  openKey();
+  return false;
+}
+function openHelp(){ document.getElementById('helpModal').style.display='grid'; }
+function closeHelp(){ document.getElementById('helpModal').style.display='none'; }
+
+
+function isArabic(s){return /[\u0600-\u06FF]/.test(s);}
+
+/* ---------- tiny markdown renderer ---------- */
+function md(t){
+  let h=t.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+  // code blocks
+  h=h.replace(/```([\s\S]*?)```/g,(m,c)=>`<pre>${c.trim()}</pre>`);
+  // tables
+  h=h.replace(/((?:^\|.*\|\s*$\n?)+)/gm,(block)=>{
+    const rows=block.trim().split('\n').filter(r=>r.trim());
+    if(rows.length<2)return block;
+    const cells=r=>r.replace(/^\||\|$/g,'').split('|').map(c=>c.trim());
+    if(!/^[\s|:\-]+$/.test(rows[1]))return block;
+    let out='<table><thead><tr>'+cells(rows[0]).map(c=>`<th>${c}</th>`).join('')+'</tr></thead><tbody>';
+    for(let i=2;i<rows.length;i++)out+='<tr>'+cells(rows[i]).map(c=>`<td>${c}</td>`).join('')+'</tr>';
+    return out+'</tbody></table>';
+  });
+  h=h.replace(/^### (.*)$/gm,'<h3>$1</h3>')
+     .replace(/^## (.*)$/gm,'<h2>$1</h2>')
+     .replace(/^# (.*)$/gm,'<h2>$1</h2>');
+  h=h.replace(/\*\*(.+?)\*\*/g,'<strong>$1</strong>');
+  h=h.replace(/`([^`]+)`/g,'<code>$1</code>');
+  // ordered & unordered lists
+  h=h.replace(/((?:^\d+\.\s.*$\n?)+)/gm,b=>'<ol>'+b.trim().split('\n').map(l=>`<li>${l.replace(/^\d+\.\s/,'')}</li>`).join('')+'</ol>');
+  h=h.replace(/((?:^[-*]\s.*$\n?)+)/gm,b=>{
+    if(/<li>/.test(b))return b;
+    return '<ul>'+b.trim().split('\n').map(l=>`<li>${l.replace(/^[-*]\s/,'')}</li>`).join('')+'</ul>';
+  });
+  h=h.split(/\n{2,}/).map(p=>/^\s*<(h2|h3|ul|ol|table|pre)/.test(p)?p:`<p>${p.replace(/\n/g,'<br>')}</p>`).join('');
+  return h;
+}
+
+/* ---------- deliverable detection ---------- */
+function detectTemplate(text){
+  const t=text.toLowerCase();
+  // MCQ: several "A)/B)" or "answer key" or numbered Qs with options
+  if(/answer key|مفتاح الإجابة/.test(t) || (/(^|\n)\s*\d+[\.\)]/.test(text) && /(\n|^)\s*[a-dأ-د][\)\.]/i.test(text)))
+    return {key:"mcq",label:"MCQ Quiz"};
+  // Rubric: a markdown table whose header mentions criteria/levels
+  if(/\|/.test(text) && /(criteria|criterion|excellent|good \(|developing|المعيار|ممتاز|سلم تقدير|rubric)/i.test(t))
+    return {key:"rubric",label:"Rubric"};
+  // Feedback
+  if(/(what you did well|one thing to strengthen|your next step|ما الذي أحسنت|خطوتك التالية)/i.test(t))
+    return {key:"feedback",label:"Feedback"};
+  // Lesson plan: objectives + activities/strategies, reasonably long
+  if(text.length>350 && /(learning objective|objectives|lesson|activit|assessment|الأهداف|خطة درس|الأنشطة)/i.test(t))
+    return {key:"lesson",label:"Lesson Plan"};
+  return null;
+}
+
+function addMsg(role,text){
+  const wrap=document.createElement('div');
+  wrap.className='msg '+role;
+  const av=document.createElement('div');
+  av.className='avatar '+(role==='user'?'user':'ai');
+  av.textContent=role==='user'?'🧑‍🏫':'🎓';
+  const b=document.createElement('div');
+  b.className='bubble';
+  if(isArabic(text))b.setAttribute('dir','rtl');
+  b.innerHTML=md(text);
+  // attach export button for AI deliverables
+  if(role==='ai'){
+    const tpl=detectTemplate(text);
+    if(tpl){
+      const actions=document.createElement('div');
+      actions.className='msg-actions';
+      const btn=document.createElement('button');
+      btn.className='pdf-btn';
+      btn.innerHTML='📄 '+STR[lang].exportBtn;
+      btn.onclick=()=>exportToTags(text,tpl,btn,b);
+      actions.appendChild(btn);
+      b.appendChild(actions);
+    }
+  }
+  wrap.appendChild(av);wrap.appendChild(b);
+  chat.appendChild(wrap);
+  chat.scrollTop=chat.scrollHeight;
+  return b;
+}
+
+/* ---------- export a deliverable to PDF tags ---------- */
+const TAG_RULES={
+  lesson:"Lesson Plan syntax — use these tags ONLY:\n'## Section Title' for each numbered section\n'- bullet' for an objective or list item\n'TIME | Phase | minutes | description' for each colour-coded lesson-flow step\n'DIFF | Label | text' for a differentiation column\n'?? question' for a how-to-continue option\nA section whose title contains 'continue' or 'next step' becomes the closing follow-up box.",
+  mcq:"MCQ Quiz syntax — leave a blank line between questions. For each:\n'Q: question text'\n'* correct option' (exactly one starred correct option)\n'- other option' for each distractor.\nAn answer key is generated automatically, so do not add one.",
+  rubric:"Rubric syntax — first line = column headers, each later line = one row, cells separated by ' | '. Example:\nCriterion | Excellent (4) | Good (3) | Developing (2)\nAccuracy | All correct | Minor errors | Several errors",
+  feedback:"Feedback syntax — use exactly these three sections:\n'## What you did well' then text\n'## One thing to strengthen' then text\n'## Your next step' then text"
+};
+
+async function exportToTags(sourceText,tpl,btn,bubble){
+  btn.disabled=true;
+  btn.innerHTML='⏳ '+STR[lang].exporting;
+  const prompt=`Reformat the following classroom deliverable into the school's Output→PDF tagged syntax. Do NOT change, add, or remove any content — only re-express it using the tags. Keep any [bracketed] placeholders intact. Output ONLY the tagged content, with no preamble, no explanation, and no markdown code fences.\n\n${TAG_RULES[tpl.key]}\n\nDELIVERABLE TO REFORMAT:\n${sourceText}`;
+  try{
+    const res=await fetch("https://api.anthropic.com/v1/messages",{
+      method:"POST",headers:{
+        "Content-Type":"application/json",
+        "x-api-key":getKey(),
+        "anthropic-version":"2023-06-01",
+        "anthropic-dangerous-direct-browser-access":"true"
+      },
+      body:JSON.stringify({
+        model:"claude-sonnet-4-20250514",max_tokens:1500,
+        messages:[{role:"user",content:prompt}]
+      })
+    });
+    const data=await res.json();
+    if(res.status===401||res.status===403||(data&&data.error)){
+      btn.disabled=false;btn.innerHTML='📄 '+STR[lang].exportBtn;
+      showKeyNote();return;
+    }
+    let tags=(data.content||[]).filter(x=>x.type==='text').map(x=>x.text).join('\n').trim();
+    tags=tags.replace(/^```[a-z]*\n?/i,'').replace(/```$/,'').trim();
+    renderTagBlock(bubble,tpl,tags);
+    btn.className='pdf-btn done';
+    btn.innerHTML='✓ '+STR[lang].exported;
+    btn.disabled=true;
+  }catch(e){
+    btn.disabled=false;
+    btn.innerHTML='📄 '+STR[lang].exportBtn;
+  }
+}
+
+function renderTagBlock(bubble,tpl,tags){
+  const note=document.createElement('div');
+  note.className='tpl-note';
+  note.innerHTML=STR[lang].tplNote(tpl.label);
+  const wrap=document.createElement('div');
+  wrap.className='pre-wrap';
+  const pre=document.createElement('pre');
+  pre.textContent=tags;
+  const copy=document.createElement('button');
+  copy.className='copy-btn';copy.textContent=STR[lang].copy;
+  copy.onclick=()=>{
+    navigator.clipboard.writeText(tags).then(()=>{
+      copy.textContent=STR[lang].copied;copy.classList.add('copied');
+      setTimeout(()=>{copy.textContent=STR[lang].copy;copy.classList.remove('copied');},1600);
+    });
+  };
+  wrap.appendChild(copy);wrap.appendChild(pre);
+  bubble.appendChild(note);bubble.appendChild(wrap);
+  chat.scrollTop=chat.scrollHeight;
+}
+
+function showKeyNote(){
+  // avoid stacking duplicate notes
+  const last=chat.lastElementChild;
+  if(last&&last.classList&&last.classList.contains('key-note'))return;
+  const note=document.createElement('div');
+  note.className='key-note';
+  if(lang==='ar')note.setAttribute('dir','rtl');
+  note.innerHTML=STR[lang].keyNote;
+  chat.appendChild(note);
+  chat.scrollTop=chat.scrollHeight;
+}
+
+function showErrNote(msg){
+  const note=document.createElement('div');
+  note.className='key-note';
+  if(lang==='ar')note.setAttribute('dir','rtl');
+  note.innerHTML=STR[lang].errNote(msg);
+  chat.appendChild(note);
+  chat.scrollTop=chat.scrollHeight;
+}
+
+function retryLast(){
+  // remove any trailing note(s), then re-call with existing history
+  let last=chat.lastElementChild;
+  while(last&&last.classList&&last.classList.contains('key-note')){last.remove();last=chat.lastElementChild;}
+  if(history.length&&history[history.length-1].role==='user') callClaude();
+}
+
+function showMenu(){
+  const wrap=document.createElement('div');
+  wrap.className='msg ai';
+  const av=document.createElement('div');av.className='avatar ai';av.textContent='🎓';
+  const b=document.createElement('div');b.className='bubble';
+  if(lang==='ar')b.setAttribute('dir','rtl');
+  b.innerHTML=md(STR[lang].greet);
+  const grid=document.createElement('div');grid.className='menu-grid';
+  MENU[lang].forEach(([n,tt,d])=>{
+    const c=document.createElement('div');c.className='menu-card';
+    if(lang==='ar')c.setAttribute('dir','rtl');
+    c.innerHTML=`<div class="mc-top"><span class="mc-num">${n}</span>${tt}</div><p>${d}</p>`;
+    c.onclick=()=>{
+      const en=`I'd like help with: ${tt}. Before producing anything, ask me for the four essentials in one batched message — curriculum first, then subject, grade/year level, and topic.`;
+      const ar=`أريد المساعدة في: ${tt}. قبل إنتاج أي شيء، اسألني عن العناصر الأربعة في رسالة واحدة — المنهج أولًا، ثم المادة والصف/المرحلة والموضوع.`;
+      input.value=(lang==='ar'?ar:en);send();
+    };
+    grid.appendChild(c);
+  });
+  b.appendChild(grid);
+  wrap.appendChild(av);wrap.appendChild(b);
+  chat.appendChild(wrap);
+  chat.scrollTop=chat.scrollHeight;
+}
+
+/* ---------- context chip extraction ---------- */
+const ctx={cur:'',sub:'',grd:'',top:''};
+function titleCase(s){return s.replace(/\b\w/g,m=>m.toUpperCase());}
+function updateChips(text){
+  const t=text.toLowerCase();
+
+  // Curriculum
+  const curs=[['igcse','IGCSE'],['as level','AS Level'],['a level','A Level'],['cambridge','Cambridge'],['edexcel','Edexcel'],['pearson','Pearson'],['myp','IB MYP'],['pyp','IB PYP'],[' dp','IB DP'],['common core','Common Core'],['ngss','NGSS'],['saudi','Saudi Ministry'],['uae','UAE Ministry'],['qatar','Qatar'],['bahrain','Bahrain'],['kuwait','Kuwait'],['oman','Oman'],['jordan','Jordanian'],['egypt','Egyptian']];
+  curs.forEach(([k,v])=>{if(!ctx.cur&&t.includes(k))ctx.cur=v;});
+
+  // Subject
+  const subj=['biology','chemistry','physics','mathematics','math','science','english','arabic','history','geography','ict','computer science','computer','islamic studies','islamic','economics','business','art','music'];
+  subj.forEach(s=>{if(!ctx.sub&&t.includes(s))ctx.sub=titleCase(s);});
+
+  // Grade / Year — REQUIRE a number (or named early-years stage)
+  let g=text.match(/\b(year|grade|yr|g)\s*-?\s*(\d{1,2})\b/i);
+  if(g&&!ctx.grd){
+    const word=/^(yr|g)$/i.test(g[1])?(/^g$/i.test(g[1])?'Grade':'Year'):titleCase(g[1]);
+    ctx.grd=`${word} ${g[2]}`;
+  } else if(!ctx.grd){
+    const ey=text.match(/\b(kg ?\d?|kindergarten|reception|foundation|k-?12)\b/i);
+    if(ey)ctx.grd=titleCase(ey[0]);
+  }
+
+  // Topic — pull free text after common cues
+  if(!ctx.top){
+    let m=text.match(/\btopic\s*[:\-]\s*([^.\n,;]{2,60})/i)
+        || text.match(/\b(?:on|about|covering|regarding)\s+(?:the\s+)?([^.\n,;]{2,60})/i);
+    if(m){
+      let topic=m[1].trim()
+        .replace(/\s+(for|in|to|with|at|using)\s.*$/i,'')   // cut trailing clauses
+        .replace(/\b(year|grade)\s*\d+.*$/i,'').trim();
+      // avoid capturing a curriculum/subject word as the topic
+      if(topic && topic.length>1 && !/^(the|a|an)$/i.test(topic)) ctx.top=titleCase(topic);
+    }
+  }
+  renderChips();
+}
+function renderChips(){
+  set('chip-cur',STR[lang].cur,ctx.cur);
+  set('chip-sub',STR[lang].sub2,ctx.sub);
+  set('chip-grd',STR[lang].grd,ctx.grd);
+  set('chip-top',STR[lang].top,ctx.top);
+  function set(id,label,val){
+    const el=document.getElementById(id);
+    el.classList.toggle('set',!!val);
+    el.querySelector('.lbl').innerHTML=val?`${label}: <b>${val}</b>`:label;
+  }
+}
+
+/* ---------- API call ---------- */
+async function callClaude(){
+  const typing=document.createElement('div');
+  typing.className='msg ai typing';
+  typing.innerHTML='<div class="avatar ai">🎓</div><div class="bubble"><span></span><span></span><span></span></div>';
+  chat.appendChild(typing);chat.scrollTop=chat.scrollHeight;
+  try{
+    const res=await fetch("https://api.anthropic.com/v1/messages",{
+      method:"POST",headers:{
+        "Content-Type":"application/json",
+        "x-api-key":getKey(),
+        "anthropic-version":"2023-06-01",
+        "anthropic-dangerous-direct-browser-access":"true"
+      },
+      body:JSON.stringify({
+        model:"claude-sonnet-4-20250514",max_tokens:2000,
+        system:SYSTEM_PROMPT,
+        messages:history
+      })
+    });
+    typing.remove();
+    const raw=await res.text();
+    let data=null;
+    try{ data=JSON.parse(raw); }catch(_){ /* non-JSON body */ }
+
+    if(res.status===401||res.status===403){ showKeyNote(); return; }
+
+    if(!data){
+      // Body wasn't JSON — show status + a short snippet of what came back
+      const snippet=(raw||'').replace(/<[^>]+>/g,' ').replace(/\s+/g,' ').trim().slice(0,160);
+      showErrNote(`HTTP ${res.status}. ${snippet||'No readable response body.'}`);
+      return;
+    }
+    if(data.error){
+      const m=data.error.message||JSON.stringify(data.error);
+      if(/api[\s_-]?key|authentication|x-api-key|credit|billing/i.test(m)){ showKeyNote(); }
+      else { showErrNote(m); }
+      return;
+    }
+    const txt=(data.content||[]).filter(b=>b.type==='text').map(b=>b.text).join('\n').trim();
+    if(txt){
+      history.push({role:'assistant',content:txt});
+      addMsg('ai',txt);
+    } else {
+      showErrNote('Empty response from the model.');
+    }
+  }catch(e){
+    typing.remove();
+    if(!getKey()) showKeyNote();
+    else showErrNote('Network error: '+(e&&e.message?e.message:'request blocked'));
+  }
+}
+
+function send(){
+  const text=input.value.trim();
+  if(!text)return;
+  if(!ensureKey())return;
+  input.value='';input.style.height='auto';
+  addMsg('user',text);
+  history.push({role:'user',content:text});
+  updateChips(text);
+  callClaude();
+}
+
+/* ---------- UI plumbing ---------- */
+function setLang(l){
+  lang=l;
+  document.getElementById('en-btn').classList.toggle('active',l==='en');
+  document.getElementById('ar-btn').classList.toggle('active',l==='ar');
+  document.documentElement.lang=l;
+  document.getElementById('t-title').textContent=STR[l].title;
+  document.getElementById('t-sub').textContent=STR[l].sub;
+  document.getElementById('reset-label').textContent=STR[l].reset;
+  input.placeholder=STR[l].placeholder;
+  document.getElementById('hint').textContent=STR[l].hint;
+  renderChips();
+}
+function resetChat(){
+  history=[];chat.innerHTML='';
+  ctx.cur=ctx.sub=ctx.grd=ctx.top='';renderChips();
+  showMenu();
+}
+input.addEventListener('input',()=>{input.style.height='auto';input.style.height=Math.min(input.scrollHeight,140)+'px';});
+input.addEventListener('keydown',e=>{if(e.key==='Enter'&&!e.shiftKey){e.preventDefault();send();}});
+document.getElementById('keyModal').addEventListener('click',e=>{if(e.target.id==='keyModal')closeKey();});
+document.getElementById('helpModal').addEventListener('click',e=>{if(e.target.id==='helpModal')closeHelp();});
+document.getElementById('keyInput').addEventListener('keydown',e=>{if(e.key==='Enter')saveKey();});
+
+/* init */
+renderChips();
+refreshKeyBtn();
+showMenu();
+if(!getKey()) openKey();
+</script>
+</body>
+</html>
